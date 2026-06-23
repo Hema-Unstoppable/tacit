@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Tacit{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/app.css">
+  </head>
+  <body>
+    {% if user is defined and user %}
+      <div class="shell">
+        <aside class="sidebar">
+          <a class="brand app-brand" href="/">
+            <span class="brand-mark">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="2" y="5" width="16" height="3" rx="1.5" fill="white"/>
+                <rect x="8.5" y="8" width="3" height="8" rx="1.5" fill="white"/>
+                <circle cx="15" cy="5.5" r="1.5" fill="rgba(255,255,255,0.45)"/>
+              </svg>
+            </span>
+            <span>Tacit</span>
+          </a>
+          <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
+          <a class="nav-link {% if active == 'sources' %}active{% endif %}" href="/sources">Sources</a>
+          <a class="nav-link {% if active == 'calendar' %}active{% endif %}" href="/calendar">Calendar</a>
+          <a class="nav-link {% if active == 'history' %}active{% endif %}" href="/history">History</a>
+          <a class="nav-link {% if active == 'channels' %}active{% endif %}" href="/channels">Channels</a>
+          <a class="nav-link {% if active == 'voice' %}active{% endif %}" href="/voice">Voice Profile</a>
+          <a class="nav-link {% if active == 'settings' %}active{% endif %}" href="/settings">Settings</a>
+          {% if user.is_admin %}
+            <a class="nav-link {% if active == 'admin' %}active{% endif %}" href="/admin">Admin</a>
+          {% endif %}
+          <form method="post" action="/logout" class="mt-8">
+            <button class="button secondary" type="submit">Log out</button>
+          </form>
+        </aside>
+        <main class="main">
+          <div class="topbar">
+            <div>
+              <div class="eyebrow app-eyebrow">Knowledge-to-Content Engine</div>
+              <h1 class="page-title">{% block page_title %}Tacit{% endblock %}</h1>
+              {% if workspace is defined and workspace %}<div class="subtitle">{{ workspace.name }}</div>{% endif %}
+            </div>
+            <div class="topbar-actions">
+              {% if ai_status is defined and user.is_admin %}
+                <span class="ai-status {% if ai_status.configured %}connected{% else %}fallback{% endif %}">
+                  {{ ai_status.label }}{% if ai_status.configured %} - {{ ai_status.model }}{% endif %}
+                </span>
+              {% endif %}
+              <a class="button" href="/sources#add-source">Add source</a>
+            </div>
+          </div>
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    {% else %}
+      {% block auth_content %}{% endblock %}
+    {% endif %}
+    <script>
+      // Press Tab on an empty field to fill it with its placeholder/example text.
+      // Press Tab again (field now has a value) to move to the next field as usual.
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Tab" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        const el = document.activeElement;
+        if (!el) return;
+        const tag = el.tagName;
+        if (tag !== "INPUT" && tag !== "TEXTAREA") return;
+        const skipTypes = ["file", "password", "checkbox", "radio", "submit", "button", "date", "datetime-local", "time", "number"];
+        if (skipTypes.includes(el.type)) return;
+        if (el.value === "" && el.placeholder) {
+          e.preventDefault();
+          el.value = el.placeholder;
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+Yes, I created the frontend app screens, not a public marketing landing page yet.
+You can test it here:
+http://127.0.0.1:8000
+
+hema.bhit@gmail.com
+123456
+
+A 303 redirect is expected because the app sends new visitors to /login.
+Test flow:
+Open http://127.0.0.1:8000/signup
+Create an account.
+Fill in the voice profile.
+Go to Sources.
+Upload a PDF/DOCX or paste text.
+Open the source and click Extract insights.
+Click Generate drafts on an insight.
+Go to Drafts, edit/approve/schedule a post.
+Check Calendar.
+Important note: since no OPENAI_API_KEY is configured yet, the app uses a local fallback generator. That lets you test the full product workflow immediately, but real AI-quality insight/draft generation will kick in once we add your OpenAI API key to .env.

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block page_title %}Draft Queue{% endblock %}
+
+{% block content %}
+<section class="auto-schedule-panel">
+  <div class="auto-schedule-head">
+    <div>
+      <span class="eyebrow">Auto schedule</span>
+      <h2>Build a publishing queue in one step.</h2>
+      <p>Choose cadence, timing, timezone, and ordering. Tacit will schedule the selected posts and move you to Calendar.</p>
+    </div>
+    <span class="draft-set-count">{{ schedulable_count }} schedulable</span>
+  </div>
+  <form method="post" action="/drafts/auto-schedule">
+    <div class="grid three">
+      <div class="form-row">
+        <label>Cadence</label>
+        <select name="frequency" data-frequency-select>
+          <option value="daily">Post daily</option>
+          <option value="weekly">Post weekly</option>
+          <option value="weekends">Weekends only</option>
+          <option value="every_n_days">Every number of days</option>
+        </select>
+      </div>
+      <div class="form-row" data-every-days-row>
+        <label>Every N days</label>
+        <input type="number" name="every_days" min="1" max="30" value="2" data-every-days-input disabled>
+      </div>
+      <div class="form-row">
+        <label>Timing</label>
+        <select name="time_mode" data-time-mode>
+          <option value="best">Best time - 09:00</option>
+          <option value="rush">Rush time - 12:30</option>
+          <option value="custom">Custom time</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid three">
+      <div class="form-row" data-custom-time-row>
+        <label>Custom time</label>
+        <input type="time" name="custom_time" value="09:00" data-custom-time-input disabled>
+      </div>
+      <div class="form-row">
+        <label>Timezone</label>
+        <input value="{{ app_timezone }}" readonly>
+        <p class="small muted mt-1">Scheduled times use the app timezone.</p>
+      </div>
+      <div class="form-row">
+        <label>Order</label>
+        <select name="ordering">
+          <option value="shuffle_sources">Shuffle different sources</option>
+          <option value="source_sequence">All source insights in sequence</option>
+        </select>
+      </div>
+    </div>
+    <div class="auto-schedule-footer">
+      <div class="form-row auto-schedule-scope">
+        <label>Posts to schedule</label>
+        <select name="scope">
+          <option value="ready">Only approved / ready posts</option>
+          <option value="all">All unscheduled drafts</option>
+        </select>
+      </div>
+      <button class="button" type="submit" {% if not schedulable_count %}disabled{% endif %}>Approve schedule and move to Calendar</button>
+    </div>
+  </form>
+</section>
+
+<div class="draft-group-list">
+  {% for group in draft_groups %}
+    <section class="draft-group">
+      <div class="draft-group-header">
+        <div>
+          <span class="eyebrow">Generated post set</span>
+          <h2>{{ group.insight.title if group.insight else "LinkedIn post set" }}</h2>
+          <div class="draft-group-meta">
+            <span>Resource: {{ group.source.title if group.source else "Source" }}</span>
+            <span>Insight date: {{ group.created_at|app_datetime }}</span>
+          </div>
+        </div>
+        <div class="draft-group-actions">
+          <span class="draft-set-count">{{ group.posts|length }} posts</span>
+          <form method="post" action="/drafts/groups/{{ group.id }}/delete">
+            <button
+              class="button secondary danger-soft"
+              type="submit"
+              onclick="return confirm('Delete all posts in this generated set?')"
+            >Delete set</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="list">
+        {% for post in group.posts %}
+          <form class="card draft-card" method="post" action="/drafts/{{ post.id }}">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <span class="status {{ post.status }}">{{ post.status }}</span>
+                <span class="small muted ml-2">Post {{ post.variant_number }} of {{ group.posts|length }}</span>
+              </div>
+              {% if post.planned_publish_at %}
+                <span class="small muted">Scheduled {{ post.planned_publish_at|app_datetime }}</span>
+              {% elif post.posted_at %}
+                <span class="small muted">Posted {{ post.posted_at|app_datetime }}</span>
+              {% endif %}
+            </div>
+            {% if post.linkedin_post_id %}
+              <a class="text-link mb-3" href="{{ post.linkedin_post_id|linkedin_url }}" target="_blank" rel="noreferrer">View on LinkedIn</a>
+            {% endif %}
+            <p class="post-text post-preview">{{ post.draft_text }}</p>
+            <details class="post-details">
+              <summary><span class="summary-open">See more / edit post</span><span class="summary-close">See less</span></summary>
+              <div class="form-row mt-3">
+                <label>Draft text</label>
+                <textarea name="draft_text">{{ post.draft_text }}</textarea>
+              </div>
+              <div class="grid three">
+                <div class="form-row">
+                  <label>Status</label>
+                  <select name="status" data-status-select>
+                    {% for status in ["draft", "approved", "ready_to_publish", "scheduled", "posted", "publish_failed", "rejected", "archived"] %}
+                      <option value="{{ status }}" {% if post.status == status %}selected{% endif %}>{{ status|replace("_", " ") }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label>Planned publish date</label>
+                  <input
+                    type="datetime-local"
+                    name="planned_publish_at"
+                    data-schedule-input
+                    value="{{ post.planned_publish_at.strftime('%Y-%m-%dT%H:%M') if post.planned_publish_at else '' }}"
+                  >
+                  <p class="small muted mt-1">Choosing a date will schedule this post in the app timezone.</p>
+                </div>
+                <div class="form-row flex items-end gap-2">
+                  <button class="button" type="submit">Save</button>
+                  <button class="button secondary" type="button" onclick="navigator.clipboard.writeText(this.closest('form').querySelector('textarea').value)">Copy</button>
+                  <button
+                    class="button secondary danger-soft"
+                    type="submit"
+                    form="delete-post-{{ post.id }}"
+                  >Delete</button>
+                </div>
+              </div>
+            </details>
+          </form>
+          <form
+            id="delete-post-{{ post.id }}"
+            method="post"
+            action="/drafts/{{ post.id }}/delete"
+            onsubmit="return confirm('Delete this draft post?')"
+          ></form>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <section class="card">
+      <h2>No drafts yet</h2>
+      <p class="muted">Upload a source, extract insights, then generate drafts.</p>
+      <a class="button mt-3" href="/sources">Add source</a>
+    </section>
+  {% endfor %}
+</div>
+<script>
+  document.querySelectorAll("[data-schedule-input]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const form = input.closest("form");
+      const status = form.querySelector("[data-status-select]");
+      if (input.value && status) {
+        status.value = "scheduled";
+      }
+    });
+  });
+
+  const frequencySelect = document.querySelector("[data-frequency-select]");
+  const everyDaysRow = document.querySelector("[data-every-days-row]");
+  const everyDaysInput = document.querySelector("[data-every-days-input]");
+  const timeModeSelect = document.querySelector("[data-time-mode]");
+  const customTimeRow = document.querySelector("[data-custom-time-row]");
+  const customTimeInput = document.querySelector("[data-custom-time-input]");
+
+  function syncAutoScheduleControls() {
+    const usesEveryDays = frequencySelect && frequencySelect.value === "every_n_days";
+    if (everyDaysRow && everyDaysInput) {
+      everyDaysRow.classList.toggle("is-disabled", !usesEveryDays);
+      everyDaysInput.disabled = !usesEveryDays;
+    }
+
+    const usesCustomTime = timeModeSelect && timeModeSelect.value === "custom";
+    if (customTimeRow && customTimeInput) {
+      customTimeRow.classList.toggle("is-disabled", !usesCustomTime);
+      customTimeInput.disabled = !usesCustomTime;
+    }
+  }
+
+  frequencySelect?.addEventListener("change", syncAutoScheduleControls);
+  timeModeSelect?.addEventListener("change", syncAutoScheduleControls);
+  syncAutoScheduleControls();
+</script>
+{% endblock %}

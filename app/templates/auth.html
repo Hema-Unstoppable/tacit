@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Sign up" if mode == "signup" else "Log in" }} - Tacit{% endblock %}
+
+{% block auth_content %}
+<div class="auth">
+  <div class="auth-shell">
+    <section class="auth-story">
+      <a class="landing-brand auth-logo" href="/">Tacit</a>
+      <span class="eyebrow">Knowledge-to-Content Platform</span>
+      <h1>{{ "Start turning expertise into LinkedIn content." if mode == "signup" else "Welcome back to your content engine." }}</h1>
+      <p>Upload deep knowledge, extract publishable insights, and keep your LinkedIn workflow moving from draft to schedule.</p>
+      <div class="auth-mini-dashboard">
+        <div class="mockup-top">
+          <span></span><span></span><span></span>
+          <strong>AI extracted 12 insights</strong>
+        </div>
+        <div class="auth-mini-body">
+          <div class="auth-mini-sidebar"><i>T</i><b></b><b></b><b></b></div>
+          <div class="auth-mini-main">
+            <div class="auth-mini-card wide"><strong>Reliability_Report.pdf</strong><em>94%</em></div>
+            <div class="auth-mini-grid">
+              <div class="auth-mini-card"><small>Draft post</small><p>Technical lessons become stronger content when they start from field evidence.</p></div>
+              <div class="auth-mini-card"><small>Calendar</small><i></i><i></i><i></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="auth-card">
+      <h2>{{ "Create your workspace" if mode == "signup" else "Log in to Tacit" }}</h2>
+      <p class="subtitle">Turn expert knowledge into LinkedIn authority.</p>
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <a href="/auth/google" class="google-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </a>
+
+      <div class="auth-divider"><span>or continue with email</span></div>
+
+      <form method="post" action="/{{ mode }}">
+        <div class="form-row">
+          <label>Email</label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input type="password" name="password" required>
+        </div>
+        {% if mode == "signup" %}
+          <div class="form-row">
+            <label>Workspace name</label>
+            <input type="text" name="workspace_name" value="My Tacit Workspace">
+          </div>
+        {% endif %}
+        <button class="button full" type="submit">{{ "Create account" if mode == "signup" else "Log in" }}</button>
+        <a class="button secondary full mt-3" href="{{ '/login' if mode == 'signup' else '/signup' }}">
+          {{ "Already have an account? Log in" if mode == "signup" else "Create a new workspace" }}
+        </a>
+      </form>
+      <a class="auth-back" href="/landing">Back to landing page</a>
+    </section>
+  </div>
+</div>
+{% endblock %}

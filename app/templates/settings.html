@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">Workspace settings</span>
+    <h2>Configure your workspace.</h2>
+    <p>Rename your workspace, set the timezone label shown on dates, and manage your LinkedIn connection.</p>
+  </div>
+</section>
+
+{% if request.query_params.get("saved") %}
+  <div class="notice success mb-4">Settings saved.</div>
+{% endif %}
+
+<div class="grid two">
+  <section class="card">
+    <h2>Workspace</h2>
+    <form method="post" action="/settings" class="mt-3">
+      <div class="form-row">
+        <label>Workspace name</label>
+        <input name="workspace_name" value="{{ workspace.name }}" required>
+      </div>
+      <div class="form-row">
+        <label>Timezone label</label>
+        <select name="timezone_label">
+          <option value="" {% if not workspace.timezone_label %}selected{% endif %}>Use default ({{ app_timezone }})</option>
+          {% for tz in common_timezones %}
+            <option value="{{ tz }}" {% if workspace.timezone_label == tz %}selected{% endif %}>{{ tz }}</option>
+          {% endfor %}
+        </select>
+        <p class="small muted mt-1">This sets the timezone label shown next to dates across Tacit. It does not change your server's clock — scheduled posts still publish based on the server's local time.</p>
+      </div>
+      <button class="button" type="submit">Save settings</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>LinkedIn connection</h2>
+    {% if linkedin_status.connected %}
+      {% set account = linkedin_status.account %}
+      <div class="connected-profile mt-3">
+        {% if account.picture_url %}
+          <img src="{{ account.picture_url }}" alt="">
+        {% else %}
+          <div class="profile-placeholder">in</div>
+        {% endif %}
+        <div>
+          <strong>{{ account.name }}</strong>
+          <p class="small muted">{{ account.email or account.linkedin_urn }}</p>
+          {% if account.org_urn %}
+            <p class="small muted">Publishing as: {{ account.org_name or account.org_urn }}</p>
+          {% endif %}
+        </div>
+      </div>
+      <a class="button secondary mt-4" href="/channels">Manage LinkedIn connection →</a>
+    {% else %}
+      <p class="muted mt-3">No LinkedIn account connected yet.</p>
+      <a class="button mt-3" href="/channels">Connect LinkedIn →</a>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

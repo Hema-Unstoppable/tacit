@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block page_title %}Channels{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">Publishing channel</span>
+    <h2>Connect Tacit to LinkedIn.</h2>
+    <p>Authorize Tacit through LinkedIn OAuth so scheduled and approved posts can be published through the official LinkedIn API.</p>
+  </div>
+  <div class="app-hero-metrics">
+    <span><b>{{ "Yes" if linkedin_status.configured else "No" }}</b> App config</span>
+    <span><b>{{ "Yes" if linkedin_status.connected else "No" }}</b> Connected</span>
+  </div>
+</section>
+
+<div>
+  <section class="card channel-card">
+    <div class="channel-card-head">
+      <div class="channel-icon">in</div>
+      <div>
+        <h2>LinkedIn account</h2>
+        <p class="muted">Connect the LinkedIn account that will authorize publishing.</p>
+      </div>
+    </div>
+
+    {% if linkedin_error %}
+      <div class="error">{{ linkedin_error }}</div>
+    {% endif %}
+
+    {% if linkedin_status.connected %}
+      {% set account = linkedin_status.account %}
+      <div class="connected-profile">
+        {% if account.picture_url %}
+          <img src="{{ account.picture_url }}" alt="">
+        {% else %}
+          <div class="profile-placeholder">in</div>
+        {% endif %}
+        <div>
+          <strong>{{ account.name }}</strong>
+          <p class="small muted">{{ account.email or account.linkedin_urn }}</p>
+          {% if account.token_expires_at %}
+            <p class="small muted">Token expires {{ account.token_expires_at.strftime("%b %d, %Y %I:%M %p") }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="publish-target-row">
+        <span class="eyebrow app-eyebrow">Publishing as</span>
+        {% if account.org_urn %}
+          <div class="publish-target active">
+            <span class="publish-target-icon">🏢</span>
+            <div>
+              <strong>{{ account.org_name or account.org_urn }}</strong>
+              <p class="small muted">Company page · {{ account.org_urn }}</p>
+            </div>
+            <form method="post" action="/linkedin/clear-org" style="margin-left:auto">
+              <button class="button secondary" type="submit" title="Switch back to personal profile">Switch to personal</button>
+            </form>
+          </div>
+        {% else %}
+          <div class="publish-target">
+            <span class="publish-target-icon">👤</span>
+            <div>
+              <strong>{{ account.name }}</strong>
+              <p class="small muted">Personal profile</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <form method="post" action="/linkedin/disconnect" class="mt-4">
+        <button class="button secondary danger-soft" type="submit" onclick="return confirm('Disconnect LinkedIn from Tacit?')">Disconnect</button>
+      </form>
+    {% else %}
+      {% if linkedin_status.configured %}
+        <a class="button mt-4" href="/linkedin/connect">Connect LinkedIn</a>
+      {% else %}
+        <p class="muted mt-4">LinkedIn credentials are not configured in <code>.env</code> yet.</p>
+      {% endif %}
+    {% endif %}
+  </section>
+
+</div>
+
+<div class="grid two mt-4">
+  <section class="card">
+    <h2>Setup checklist</h2>
+    <div class="list">
+      <div class="item">
+        <strong>1. LinkedIn Developer App</strong>
+        <p class="small muted">Tacit app created at developer.linkedin.com.</p>
+      </div>
+      <div class="item">
+        <strong>2. Redirect URL</strong>
+        <p class="small muted">Add <code>http://127.0.0.1:8000/linkedin/callback</code> in the Auth tab.</p>
+      </div>
+      <div class="item">
+        <strong>3. Required products</strong>
+        <p class="small muted"><strong>Share on LinkedIn</strong> (personal posts) + <strong>Community Management API</strong> (company page posts). Request both in the Products tab — approval is usually same-day.</p>
+      </div>
+      <div class="item">
+        <strong>4. Company page admin</strong>
+        <p class="small muted">You must be a <strong>Super Admin</strong> or <strong>Content Admin</strong> of the TOGA page on LinkedIn for company page publishing to work.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Scope reference</h2>
+    <div class="list">
+      <div class="item">
+        <strong>w_member_social</strong>
+        <p class="small muted">Publish to personal profile. Included in <em>Share on LinkedIn</em> product.</p>
+      </div>
+      <div class="item">
+        <strong>w_organization_social</strong>
+        <p class="small muted">Publish to company pages. Included in <em>Community Management API</em> product.</p>
+      </div>
+      <div class="item">
+        <strong>r_organization_social</strong>
+        <p class="small muted">Auto-detect company pages you admin after connecting. Also in <em>Community Management API</em>.</p>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Verify your email — Tacit{% endblock %}
+{% block auth_content %}
+<div class="auth-shell">
+  <div class="auth-card verify-card">
+    <div class="auth-logo">
+      <span class="auth-logo-mark">T</span>
+    </div>
+
+    <div class="verify-icon">📬</div>
+    <h1 class="auth-title">Check your inbox</h1>
+    <p class="auth-sub">
+      We sent a verification link to
+      {% if pending_user %}<strong>{{ pending_user.email }}</strong>{% else %}your email address{% endif %}.
+      Click the link to activate your account.
+    </p>
+
+    {% if request.query_params.get("resent") %}
+      <div class="verify-notice success">Email resent — check your inbox (and spam folder).</div>
+    {% endif %}
+
+    {% if dev_token %}
+      <div class="verify-notice dev">
+        <strong>Dev mode</strong> — SMTP not configured. Use this link to verify:
+        <a href="/verify-email/{{ dev_token }}" class="dev-link">/verify-email/[token]</a>
+      </div>
+    {% elif smtp_configured %}
+      <p class="verify-hint">Didn't receive it? Check your spam folder, or resend below.</p>
+    {% else %}
+      <div class="verify-notice dev">
+        <strong>Dev mode</strong> — SMTP not configured. Check the server console for the verification link.
+      </div>
+    {% endif %}
+
+    <form method="post" action="/resend-verification" class="mt-4">
+      <button class="button" type="submit">Resend verification email</button>
+    </form>
+
+    <p class="verify-logout">
+      Wrong account? <a href="/logout">Sign out</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

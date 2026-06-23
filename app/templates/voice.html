@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block page_title %}Voice Profile{% endblock %}
+
+{% block content %}
+<form class="card voice-form-card" method="post" action="/voice">
+  <div class="voice-form-header">
+    <div>
+      <span class="eyebrow">Writing system</span>
+      <h2>Shape how Tacit writes for you.</h2>
+      <p>Define the audience, tone, phrases to avoid, and writing samples used when generating LinkedIn drafts.</p>
+    </div>
+  </div>
+  <div class="grid two">
+    <div class="form-row">
+      <label>Profile name</label>
+      <input name="name" value="{{ profile.name if profile else 'Default voice' }}">
+    </div>
+    <div class="form-row">
+      <label>Target audience</label>
+      <input name="target_audience" value="{{ profile.target_audience if profile else 'Solo consultants and independent founders' }}">
+    </div>
+  </div>
+  <div class="form-row">
+    <label>Tone notes</label>
+    <textarea class="textarea-compact" name="tone_notes">{{ profile.tone_notes if profile else 'Clear, practical, specific, non-hypey, written for professionals.' }}</textarea>
+  </div>
+  <div class="form-row">
+    <label>Banned phrases</label>
+    <textarea class="textarea-compact" name="banned_phrases">{{ profile.banned_phrases if profile else "unlock, game-changer, supercharge, in today's fast-paced world" }}</textarea>
+  </div>
+  <div class="voice-examples">
+    <div class="voice-examples-heading">
+      <div>
+        <span class="eyebrow">Style samples</span>
+        <h3>Example posts or writing samples</h3>
+        <p>Add different types of posts if possible. A practical post, a story-led post, and an opinion post help Tacit learn your range, tone, structure, and natural phrasing.</p>
+      </div>
+    </div>
+    <div class="example-grid">
+      <div class="form-row example-card">
+        <label>Example Post 1</label>
+        <p class="field-tip">Use a practical or educational post.</p>
+        <textarea class="textarea-example" name="example_post_1" placeholder="Paste a post that shows how you explain ideas clearly.">{{ example_values[0] }}</textarea>
+      </div>
+      <div class="form-row example-card">
+        <label>Example Post 2</label>
+        <p class="field-tip">Use a story, lesson, or personal observation.</p>
+        <textarea class="textarea-example" name="example_post_2" placeholder="Paste a post that shows your storytelling or reflective tone.">{{ example_values[1] }}</textarea>
+      </div>
+      <div class="form-row example-card">
+        <label>Example Post 3</label>
+        <p class="field-tip">Use an opinion, contrarian, or framework post.</p>
+        <textarea class="textarea-example" name="example_post_3" placeholder="Paste a post that shows your point of view or framework style.">{{ example_values[2] }}</textarea>
+      </div>
+    </div>
+  </div>
+  <button class="button" type="submit">Save voice profile</button>
+</form>
+
+{% if profile and profile.fingerprint_json %}
+  <section class="card mt-4">
+    <h2>Current fingerprint</h2>
+    <pre class="small whitespace-pre-wrap">{{ profile.fingerprint_json }}</pre>
+  </section>
+{% endif %}
+{% endblock %}

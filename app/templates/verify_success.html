@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Email verified — Tacit{% endblock %}
+{% block auth_content %}
+<div class="auth-shell">
+  <div class="auth-card verify-card">
+    <div class="auth-logo">
+      <span class="auth-logo-mark">T</span>
+    </div>
+
+    <div class="verify-icon">✅</div>
+    <h1 class="auth-title">Email verified!</h1>
+    <p class="auth-sub">Your account is now active. Let's set up your workspace in a few quick steps.</p>
+
+    <a class="button mt-4" href="/onboarding">Set up my workspace →</a>
+
+    <p class="verify-hint mt-4">Or <a href="/">go to the dashboard</a> if you've already set it up.</p>
+  </div>
+</div>
+{% endblock %}

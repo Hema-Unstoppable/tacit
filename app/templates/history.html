@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block page_title %}Published History{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">Publishing archive</span>
+    <h2>Every post Tacit has published to LinkedIn.</h2>
+    <p>Use this page to verify what went live, open the LinkedIn post, and review the source-backed copy later.</p>
+    <p class="small muted mt-2">Timezone: {{ app_timezone }}</p>
+  </div>
+  <div class="app-hero-metrics">
+    <span><b>{{ posted|length }}</b> Published</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Published posts</h2>
+  <div class="list">
+    {% for post in posted %}
+      <article class="item history-item">
+        <div class="history-item-head">
+          <div>
+            <strong>{{ post.posted_at|app_datetime if post.posted_at else "Posted" }}</strong>
+            {% if post.source %}
+              <p class="small muted">Resource: {{ post.source.title }}</p>
+            {% endif %}
+          </div>
+          <div class="history-actions">
+            <span class="status posted">posted</span>
+            {% if post.linkedin_post_id %}
+              <a class="button secondary" href="{{ post.linkedin_post_id|linkedin_url }}" target="_blank" rel="noreferrer">View on LinkedIn</a>
+            {% endif %}
+          </div>
+        </div>
+        {% if post.insight %}
+          <h3 class="mt-3">{{ post.insight.title }}</h3>
+        {% endif %}
+        <p class="post-text post-preview mt-2">{{ post.draft_text }}</p>
+        <details class="post-details">
+          <summary><span class="summary-open">See more</span><span class="summary-close">See less</span></summary>
+          <p class="post-text mt-2">{{ post.draft_text }}</p>
+        </details>
+      </article>
+    {% else %}
+      <p class="muted">No published posts yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

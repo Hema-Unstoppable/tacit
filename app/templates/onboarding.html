@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to Tacit{% endblock %}
+
+{% block auth_content %}
+<div class="ob-shell">
+
+  <header class="ob-header">
+    <a class="ob-brand" href="/">
+      <span class="ob-brand-mark">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="5" width="16" height="3" rx="1.5" fill="white"/>
+          <rect x="8.5" y="8" width="3" height="8" rx="1.5" fill="white"/>
+          <circle cx="15" cy="5.5" r="1.5" fill="rgba(255,255,255,0.45)"/>
+        </svg>
+      </span>
+      Tacit
+    </a>
+    <a class="ob-skip-all" href="/onboarding/skip">Skip setup</a>
+  </header>
+
+  <div class="ob-progress">
+    <div class="ob-step-item {% if step >= 1 %}ob-active{% endif %} {% if step > 1 %}ob-done{% endif %}">
+      <div class="ob-step-dot">
+        {% if step > 1 %}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        {% else %}1{% endif %}
+      </div>
+      <span>Voice</span>
+    </div>
+    <div class="ob-connector {% if step > 1 %}ob-done{% endif %}"></div>
+    <div class="ob-step-item {% if step >= 2 %}ob-active{% endif %} {% if step > 2 %}ob-done{% endif %}">
+      <div class="ob-step-dot">
+        {% if step > 2 %}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        {% else %}2{% endif %}
+      </div>
+      <span>Source</span>
+    </div>
+    <div class="ob-connector {% if step > 2 %}ob-done{% endif %}"></div>
+    <div class="ob-step-item {% if step >= 3 %}ob-active{% endif %}">
+      <div class="ob-step-dot">3</div>
+      <span>Generate</span>
+    </div>
+  </div>
+
+  <div class="ob-card">
+
+    {% if step == 1 %}
+    <div class="ob-step-content">
+      <div class="ob-icon">🎙️</div>
+      <h1 class="ob-title">How do you sound on LinkedIn?</h1>
+      <p class="ob-desc">Tacit uses this to match your voice when writing posts — not generic AI, your voice.</p>
+
+      <form method="post" action="/onboarding/step/voice" class="ob-form">
+        <div class="ob-field">
+          <label>Who is your audience?</label>
+          <input
+            name="target_audience"
+            placeholder="e.g. Reliability engineers, maintenance managers, asset owners"
+            required
+          >
+        </div>
+        <div class="ob-field">
+          <label>How would you describe your tone?</label>
+          <input
+            name="tone_notes"
+            placeholder="e.g. Direct, practical, no buzzwords — backed by real field experience"
+          >
+        </div>
+        <div class="ob-field">
+          <label>Paste one of your best LinkedIn posts <span class="ob-optional">(optional but recommended)</span></label>
+          <textarea
+            name="example_post"
+            rows="5"
+            placeholder="Paste a post you're proud of. Tacit will learn your sentence rhythm, vocabulary, and structure from it."
+          ></textarea>
+        </div>
+        <div class="ob-actions">
+          <button class="ob-btn-primary" type="submit">Save voice &amp; continue →</button>
+          <a class="ob-btn-skip" href="/onboarding/skip">Skip for now</a>
+        </div>
+      </form>
+    </div>
+
+    {% elif step == 2 %}
+    <div class="ob-step-content">
+      <div class="ob-icon">📄</div>
+      <h1 class="ob-title">Upload your first piece of knowledge</h1>
+      <p class="ob-desc">A report, talk notes, research paper, case study — anything you know deeply. Tacit extracts LinkedIn post ideas from it automatically.</p>
+
+      {% if request.query_params.get("error") == "unsupported_file" %}
+        <div class="ob-error">Only PDF, DOCX, TXT, and MD files are supported.</div>
+      {% endif %}
+
+      <form method="post" action="/onboarding/step/source" enctype="multipart/form-data" class="ob-form">
+        <div class="ob-field">
+          <label>Document <span class="ob-file-types">PDF, DOCX, TXT, MD</span></label>
+          <input type="file" name="file" accept=".pdf,.docx,.txt,.md" required>
+        </div>
+        <div class="ob-field">
+          <label>Title <span class="ob-optional">(optional)</span></label>
+          <input name="title" placeholder="e.g. Reliability Report Q1 2025">
+        </div>
+        <div class="ob-actions">
+          <button class="ob-btn-primary" type="submit">Upload &amp; continue →</button>
+          <a class="ob-btn-skip" href="/onboarding/skip">Skip for now</a>
+        </div>
+      </form>
+    </div>
+
+    {% elif step == 3 %}
+    <div class="ob-step-content ob-step-done">
+      <div class="ob-done-check">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <circle cx="18" cy="18" r="18" fill="#0a66c2"/>
+          <path d="M10 18l6 6 10-10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1 class="ob-title">Your workspace is ready.</h1>
+      <p class="ob-desc">Voice set. Source uploaded. Now generate your first LinkedIn posts from your knowledge.</p>
+
+      <div class="ob-summary">
+        {% if has_voice %}<div class="ob-summary-item"><span class="ob-check">✓</span> Voice profile saved</div>{% endif %}
+        {% if has_source and last_source %}<div class="ob-summary-item"><span class="ob-check">✓</span> "{{ last_source.title }}" uploaded</div>{% endif %}
+      </div>
+
+      <form method="post" action="/onboarding/complete" class="ob-form">
+        <div class="ob-actions ob-actions-done">
+          <button class="ob-btn-primary" type="submit">
+            Generate posts from "{{ last_source.title if last_source else 'my source' }}" →
+          </button>
+          <a class="ob-btn-skip" href="/onboarding/skip">Go to dashboard instead</a>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <p class="ob-footer-note">You can update all of this later from the app. <a href="/onboarding/skip">Skip and go to dashboard →</a></p>
+
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block page_title %}{{ source.title }}{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel source-workbench">
+  <div>
+    <span class="eyebrow">Source workbench</span>
+    <h2>Turn this source into LinkedIn drafts.</h2>
+    <p>Tacit will extract the strongest insights and generate draft post sets using your selected language, tone, structure, emoji, and tag preferences.</p>
+    {% if ai_error %}
+      <div class="error mt-3">{{ ai_error }}</div>
+    {% endif %}
+    <div class="source-prefs">
+      <span>Length: {{ source_preferences.length|replace("_", " ") }}</span>
+      <span>Emoji: {{ source_preferences.emoji_style|replace("_", " ") }}</span>
+      <span>Structure: {{ source_preferences.structure|replace("_", " ") }}</span>
+      <span>Tone: {{ source_preferences.tone|replace("_", " ") }}</span>
+      <span>Goal: {{ source_preferences.goal|replace("_", " ") }}</span>
+      <span>Language: {{ source_preferences.language|replace("_", " ") }}</span>
+      {% if source_preferences.tags %}
+        <span>Tags: {{ source_preferences.tags }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="source-workbench-actions">
+    <span class="status {{ source_summary.tone }}">{{ source_summary.label }}</span>
+    <form method="post" action="/sources/{{ source.id }}/create-drafts">
+      <button class="button" type="submit">
+        {% if source_summary.insights_count %}Create drafts from insights{% else %}Create LinkedIn drafts{% endif %}
+      </button>
+    </form>
+    {% if source_summary.posts_count %}
+      <a class="button secondary" href="/drafts">View drafts</a>
+    {% endif %}
+  </div>
+</section>
+
+<div class="grid three source-progress-grid">
+  <section class="card metric-card">
+    <span class="eyebrow">Source</span>
+    <h2>{{ source.original_filename or source.source_type|capitalize }}</h2>
+    <p class="muted">{{ source.raw_text|length }} characters ready for Tacit.</p>
+  </section>
+  <section class="card metric-card">
+    <span class="eyebrow">Insights</span>
+    <h2>{{ source_summary.insights_count }}</h2>
+    <p class="muted">{{ "Available for draft generation." if source_summary.insights_count else "Tacit will extract these automatically." }}</p>
+  </section>
+  <section class="card metric-card">
+    <span class="eyebrow">Draft posts</span>
+    <h2>{{ source_summary.posts_count }}</h2>
+    <p class="muted">{{ "Already created in Draft Queue." if source_summary.posts_count else "Created after the next action." }}</p>
+  </section>
+</div>
+
+<div class="grid two mt-4">
+  <section class="card">
+    <div class="section-head">
+      <div>
+        <h2>Content angles</h2>
+        <p class="muted">A lightweight view of what Tacit found, without forcing you through a separate extraction step.</p>
+      </div>
+    </div>
+    <div class="insight-preview-list">
+      {% for insight in insights %}
+        <article class="insight-preview">
+          <span class="status ready_to_publish">{{ insight.angle or "insight" }}</span>
+          <h3>{{ insight.title }}</h3>
+          <p>{{ insight.insight_text }}</p>
+        </article>
+      {% else %}
+        <div class="empty-state compact">
+          <h2>Ready for AI processing</h2>
+          <p class="muted">Click Create LinkedIn drafts and Tacit will extract insights, generate posts, and send everything to Draft Queue.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Source settings</h2>
+    <div class="source-summary-list">
+      <div>
+        <strong>Input type</strong>
+        <span>{{ source.source_type|capitalize }}</span>
+      </div>
+      <div>
+        <strong>Date added</strong>
+        <span>{{ source.created_at|app_datetime }}</span>
+      </div>
+      <div>
+        <strong>Current state</strong>
+        <span>{{ source_summary.description }}</span>
+      </div>
+    </div>
+    <form class="mt-4" method="post" action="/sources/{{ source.id }}/delete">
+      <button
+        class="button secondary danger-soft"
+        type="submit"
+        onclick="return confirm('Delete this source and all related insights/drafts?')"
+      >Delete source</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

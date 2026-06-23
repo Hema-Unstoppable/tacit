@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block page_title %}Sources{% endblock %}
+
+{% block content %}
+{% macro preference_fields(prefix) %}
+  <div class="preference-panel compact">
+    <div class="preference-heading">
+      <span class="eyebrow">Generation checkpoints</span>
+      <h3>Guide the insights and posts</h3>
+      <p>Choose how Tacit should shape LinkedIn posts from this source.</p>
+    </div>
+    <div class="grid three">
+      <div class="form-row">
+        <label>Post length</label>
+        <select name="content_length">
+          <option value="short">Short</option>
+          <option value="medium" selected>Medium</option>
+          <option value="long">Long</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Emoji style</label>
+        <select name="emoji_style">
+          <option value="no_emojis" selected>No emojis</option>
+          <option value="light_emojis">Light emojis</option>
+          <option value="emoji_friendly">Emoji friendly</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Tone</label>
+        <select name="tone">
+          <option value="professional" selected>Professional</option>
+          <option value="casual">Casual</option>
+          <option value="technical">Technical</option>
+          <option value="executive">Executive</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid three">
+      <div class="form-row">
+        <label>Structure</label>
+        <select name="post_structure">
+          <option value="hook_body_takeaway" selected>Hook + body + takeaway</option>
+          <option value="story_lesson">Story + lesson</option>
+          <option value="checklist">Checklist</option>
+          <option value="framework">Framework</option>
+          <option value="contrarian">Contrarian point of view</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Content goal</label>
+        <select name="content_goal">
+          <option value="educate" selected>Educate</option>
+          <option value="build_authority">Build authority</option>
+          <option value="start_discussion">Start discussion</option>
+          <option value="promote_offer">Soft promotion</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Post language</label>
+        <select name="post_language">
+          <option value="english" selected>English</option>
+          <option value="arabic">Arabic</option>
+          <option value="bilingual">Bilingual</option>
+          <option value="same_as_source">Same as source</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid two">
+      <div class="form-row">
+        <label>Tags / hashtags</label>
+        <input name="post_tags" placeholder="#Reliability #Maintenance #AssetIntegrity">
+        <p class="small muted mt-1">Add 3-6 specific tags.</p>
+      </div>
+      <div class="form-row">
+        <label>Other tone</label>
+        <input name="custom_tone" placeholder="Optional">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Extra instructions</label>
+      <textarea class="textarea-compact" name="extra_instructions" placeholder="Example: Keep it technical, avoid sales language, focus on reliability engineers."></textarea>
+    </div>
+  </div>
+{% endmacro %}
+
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">Knowledge sources</span>
+    <h2>Your source library comes first.</h2>
+    <p>Upload expert material, then let Tacit extract insights and turn them into LinkedIn-ready posts.</p>
+  </div>
+  <div class="app-hero-metrics">
+    <span><b>{{ source_cards|length }}</b> Sources</span>
+    <span><b>{{ source_cards|selectattr("summary.insights_count")|list|length }}</b> With insights</span>
+  </div>
+</section>
+
+<section class="card">
+  <div class="section-head">
+    <div>
+      <h2>Source library</h2>
+      <p class="muted">Open a source to create drafts, review content settings, or continue from existing insights.</p>
+    </div>
+    <a class="button" href="#add-source">Add source</a>
+  </div>
+
+  <div class="source-library">
+    {% for item in source_cards %}
+      {% set source = item.source %}
+      {% set summary = item.summary %}
+      <article class="source-row">
+        <a class="source-row-main" href="/sources/{{ source.id }}">
+          <span class="source-icon">{{ "PDF" if source.source_type == "upload" else ("MKT" if source.source_type == "campaign" else "TXT") }}</span>
+          <span>
+            <strong>{{ source.title }}</strong>
+            <em>{{ source.original_filename or source.source_type }} - {{ source.created_at|app_datetime("%b %d, %Y") }}</em>
+            <small>{{ summary.description }}</small>
+          </span>
+        </a>
+        <div class="source-row-actions">
+          <span class="status {{ summary.tone }}">{{ summary.label }}</span>
+          <form method="post" action="/sources/{{ source.id }}/delete">
+            <button
+              class="button secondary danger-soft"
+              type="submit"
+              onclick="return confirm('Delete this source and all related insights/drafts?')"
+            >Delete</button>
+          </form>
+        </div>
+      </article>
+    {% else %}
+      <div class="empty-state">
+        <h2>No sources yet</h2>
+        <p class="muted">Add your first report, note, or technical document to create LinkedIn-ready drafts.</p>
+        <a class="button mt-3" href="#add-source">Add source</a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="add-source" class="source-modal">
+  <a class="source-modal-backdrop" href="/sources" aria-label="Close add source"></a>
+  <div class="source-modal-panel">
+    <div class="source-modal-head">
+      <div>
+        <span class="eyebrow">Add source</span>
+        <h2>Choose how to add knowledge</h2>
+      </div>
+      <a class="button secondary" href="/sources">Close</a>
+    </div>
+
+    <form method="post" action="/sources/upload" enctype="multipart/form-data">
+      <div class="grid two">
+        <div class="form-row">
+          <label>Title</label>
+          <input name="title" placeholder="Optional title">
+        </div>
+        <div class="form-row">
+          <label>PDF, DOCX, TXT, or MD</label>
+          <input type="file" name="file" accept=".pdf,.docx,.txt,.md" required>
+        </div>
+      </div>
+      {{ preference_fields("upload") }}
+      <button class="button" type="submit">Add source</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

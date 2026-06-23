@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block page_title %}Admin{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">Admin only</span>
+    <h2>Tacit platform overview.</h2>
+    <p>User accounts, workspaces, and content activity across the whole platform.</p>
+  </div>
+  <div class="app-hero-metrics">
+    <span><b>{{ totals.users }}</b> Users</span>
+    <span><b>{{ totals.posted }}</b> Published</span>
+  </div>
+</section>
+
+<div class="grid four mb-4">
+  <section class="card admin-stat">
+    <span class="admin-stat-num">{{ totals.users }}</span>
+    <span class="admin-stat-label">Total users</span>
+  </section>
+  <section class="card admin-stat">
+    <span class="admin-stat-num">{{ totals.verified }}</span>
+    <span class="admin-stat-label">Verified emails</span>
+  </section>
+  <section class="card admin-stat">
+    <span class="admin-stat-num">{{ totals.sources }}</span>
+    <span class="admin-stat-label">Sources uploaded</span>
+  </section>
+  <section class="card admin-stat">
+    <span class="admin-stat-num">{{ totals.posted }}</span>
+    <span class="admin-stat-label">Posts published</span>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Users</h2>
+  <div class="admin-table-wrap mt-3">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Workspace</th>
+          <th>Verified</th>
+          <th>Sources</th>
+          <th>Posts</th>
+          <th>Published</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>
+              {{ row.user.email }}
+              {% if row.user.is_admin %}<span class="admin-badge">admin</span>{% endif %}
+            </td>
+            <td>{{ row.workspace.name if row.workspace else "—" }}</td>
+            <td>
+              {% if row.user.email_verified %}
+                <span class="status posted">verified</span>
+              {% else %}
+                <span class="status publish_failed">unverified</span>
+              {% endif %}
+            </td>
+            <td>{{ row.sources_count }}</td>
+            <td>{{ row.posts_count }}</td>
+            <td>{{ row.posted_count }}</td>
+            <td>{{ row.user.created_at|app_datetime("%b %d, %Y") }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="muted">No users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

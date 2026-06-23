@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block page_title %}Calendar{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">LinkedIn publishing</span>
+    <h2>Scheduled posts publish when they are due.</h2>
+    <p>Tacit is the scheduler. LinkedIn will show the post after Tacit publishes it at the planned time.</p>
+    <p class="small muted mt-2">Timezone: {{ app_timezone }}. Automatic publishing is configurable; use the button below to explicitly publish due posts now.</p>
+  </div>
+  <div class="app-hero-metrics">
+    <span><b>{{ scheduled|length }}</b> Scheduled</span>
+    <span><b>{{ posted|length }}</b> Posted</span>
+    <span><b>{{ failed|length }}</b> Failed</span>
+  </div>
+</section>
+
+{% if request.query_params.get("error") == "regenerate_failed" %}
+  <div class="error mb-4">Could not regenerate this post. Please try again.</div>
+{% endif %}
+
+<form class="mb-4" method="post" action="/publishing/run-due">
+  <button class="button" type="submit">Publish due posts now</button>
+</form>
+
+<div>
+  <section class="card scheduled-queue-card">
+    <div class="section-head">
+      <div>
+        <h2>Scheduled posts</h2>
+        <p class="muted">Filter, sort, and review the publishing queue before posts go live.</p>
+      </div>
+      <span class="draft-set-count"><b data-scheduled-visible-count>{{ scheduled|length }}</b> visible</span>
+    </div>
+
+    <div class="scheduled-toolbar">
+      <div class="form-row">
+        <label>Search posts</label>
+        <input type="search" placeholder="Search text, source, or insight" data-calendar-search>
+      </div>
+      <div class="form-row">
+        <label>Source</label>
+        <select data-calendar-source>
+          <option value="all">All sources</option>
+          {% for source_name in scheduled_sources %}
+            <option value="{{ source_name|lower }}">{{ source_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Time window</label>
+        <select data-calendar-window>
+          <option value="all">All scheduled</option>
+          <option value="today">Today</option>
+          <option value="7">Next 7 days</option>
+          <option value="30">Next 30 days</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Sort</label>
+        <select data-calendar-sort>
+          <option value="oldest">Oldest first</option>
+          <option value="newest">Newest first</option>
+          <option value="source">Source A-Z</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="scheduled-list" data-scheduled-list>
+      {% for post in scheduled %}
+        <article
+          class="scheduled-row"
+          data-scheduled-row
+          data-source="{{ (post.source.title if post.source else 'No source')|lower }}"
+          data-time="{{ post.planned_publish_at.isoformat() if post.planned_publish_at else '' }}"
+          data-text="{{ (post.draft_text ~ ' ' ~ (post.source.title if post.source else '') ~ ' ' ~ (post.insight.title if post.insight else ''))|lower|e }}"
+        >
+          <div class="scheduled-date">
+            <strong>{{ post.planned_publish_at|app_datetime("%a, %b %d") if post.planned_publish_at else "No date" }}</strong>
+            <span>{{ post.planned_publish_at|app_datetime("%I:%M %p") if post.planned_publish_at else "" }}</span>
+          </div>
+          <div class="scheduled-content">
+            <div class="scheduled-meta">
+              <span class="status {{ post.status }}">{{ post.status }}</span>
+              <span>{{ post.source.title if post.source else "No source" }}</span>
+              {% if post.insight %}
+                <span>{{ post.insight.title }}</span>
+              {% endif %}
+            </div>
+            <p class="post-text post-preview mt-2">{{ post.draft_text }}</p>
+          </div>
+          <div class="scheduled-actions">
+            <span class="small muted">{{ app_timezone }}</span>
+            <div class="scheduled-action-buttons">
+              <form method="post" action="/calendar/posts/{{ post.id }}/regenerate">
+                <button class="button secondary" type="submit" title="Rewrite this post with a different angle">Regenerate</button>
+              </form>
+              <form method="post" action="/calendar/posts/{{ post.id }}/unschedule">
+                <button class="button secondary" type="submit">Unschedule</button>
+              </form>
+              <form method="post" action="/calendar/posts/{{ post.id }}/delete">
+                <button
+                  class="button secondary danger-soft"
+                  type="submit"
+                  onclick="return confirm('Delete this scheduled post?')"
+                >Delete</button>
+              </form>
+            </div>
+          </div>
+          <details class="post-details scheduled-details">
+            <summary><span class="summary-open">See more / update schedule</span><span class="summary-close">See less</span></summary>
+            <form class="calendar-edit-form" method="post" action="/calendar/posts/{{ post.id }}/reschedule">
+              <div class="form-row">
+                <label>Post text</label>
+                <textarea name="draft_text">{{ post.draft_text }}</textarea>
+              </div>
+              <div class="grid three">
+                <div class="form-row">
+                  <label>Planned publish date</label>
+                  <input
+                    type="datetime-local"
+                    name="planned_publish_at"
+                    value="{{ post.planned_publish_at.strftime('%Y-%m-%dT%H:%M') if post.planned_publish_at else '' }}"
+                    required
+                  >
+                </div>
+                <div class="form-row">
+                  <label>Timezone</label>
+                  <input value="{{ app_timezone }}" readonly>
+                </div>
+                <div class="form-row flex items-end gap-2">
+                  <button class="button" type="submit">Update schedule</button>
+                  <button class="button secondary" type="button" onclick="navigator.clipboard.writeText(this.closest('form').querySelector('textarea').value)">Copy</button>
+                </div>
+              </div>
+            </form>
+          </details>
+        </article>
+      {% else %}
+        <p class="muted">No posts scheduled yet.</p>
+      {% endfor %}
+    </div>
+    <p class="muted calendar-empty-filter" data-calendar-empty hidden>No scheduled posts match the current filters.</p>
+  </section>
+</div>
+
+<div class="grid two mt-4">
+  <section class="card">
+    <div class="section-head">
+      <h2>Posted</h2>
+      <a class="button secondary" href="/history">View history</a>
+    </div>
+    <div class="list">
+      {% for post in posted %}
+        <div class="item">
+          <strong>{{ post.posted_at|app_datetime("%A, %b %d at %I:%M %p") if post.posted_at else "Posted" }}</strong>
+          <span class="status posted ml-2">posted</span>
+          {% if post.linkedin_post_id %}
+            <p class="small muted mt-2">LinkedIn ID: {{ post.linkedin_post_id }}</p>
+            <a class="text-link" href="{{ post.linkedin_post_id|linkedin_url }}" target="_blank" rel="noreferrer">View on LinkedIn</a>
+          {% endif %}
+          <p class="post-text post-preview mt-2">{{ post.draft_text }}</p>
+          <details class="post-details">
+            <summary><span class="summary-open">See more</span><span class="summary-close">See less</span></summary>
+            <p class="post-text mt-2">{{ post.draft_text }}</p>
+          </details>
+        </div>
+      {% else %}
+        <p class="muted">No posts have been published yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Publishing issues</h2>
+    <div class="list">
+      {% for post in failed %}
+        <div class="item">
+          <span class="status publish_failed">publish failed</span>
+          <p class="post-text post-preview mt-2">{{ post.draft_text }}</p>
+          <details class="post-details">
+            <summary><span class="summary-open">See more</span><span class="summary-close">See less</span></summary>
+            <p class="post-text mt-2">{{ post.draft_text }}</p>
+          </details>
+          <p class="small muted mt-2">{{ post.publish_error }}</p>
+          <form class="mt-3" method="post" action="/publishing/posts/{{ post.id }}/retry">
+            <button class="button secondary" type="submit">Retry now</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="muted">No publishing issues.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+<script>
+  const calendarRows = Array.from(document.querySelectorAll("[data-scheduled-row]"));
+  const calendarList = document.querySelector("[data-scheduled-list]");
+  const calendarSearch = document.querySelector("[data-calendar-search]");
+  const calendarSource = document.querySelector("[data-calendar-source]");
+  const calendarWindow = document.querySelector("[data-calendar-window]");
+  const calendarSort = document.querySelector("[data-calendar-sort]");
+  const visibleCount = document.querySelector("[data-scheduled-visible-count]");
+  const emptyFilter = document.querySelector("[data-calendar-empty]");
+
+  function isWithinWindow(row, windowValue) {
+    if (windowValue === "all") return true;
+    const rawTime = row.dataset.time;
+    if (!rawTime) return false;
+    const scheduled = new Date(rawTime);
+    const now = new Date();
+    if (windowValue === "today") {
+      return scheduled.toDateString() === now.toDateString();
+    }
+    const days = Number(windowValue);
+    const end = new Date(now);
+    end.setDate(end.getDate() + days);
+    return scheduled >= now && scheduled <= end;
+  }
+
+  function sortCalendarRows(rows) {
+    const sortMode = calendarSort?.value || "oldest";
+    return [...rows].sort((a, b) => {
+      if (sortMode === "source") {
+        return (a.dataset.source || "").localeCompare(b.dataset.source || "");
+      }
+      const aTime = new Date(a.dataset.time || 0).getTime();
+      const bTime = new Date(b.dataset.time || 0).getTime();
+      return sortMode === "newest" ? bTime - aTime : aTime - bTime;
+    });
+  }
+
+  function syncCalendarQueue() {
+    const query = (calendarSearch?.value || "").trim().toLowerCase();
+    const source = calendarSource?.value || "all";
+    const windowValue = calendarWindow?.value || "all";
+    let shown = 0;
+
+    sortCalendarRows(calendarRows).forEach((row) => {
+      calendarList?.appendChild(row);
+      const matchesSearch = !query || (row.dataset.text || "").includes(query);
+      const matchesSource = source === "all" || row.dataset.source === source;
+      const matchesWindow = isWithinWindow(row, windowValue);
+      const visible = matchesSearch && matchesSource && matchesWindow;
+      row.hidden = !visible;
+      if (visible) shown += 1;
+    });
+
+    if (visibleCount) visibleCount.textContent = shown;
+    if (emptyFilter) emptyFilter.hidden = shown !== 0;
+  }
+
+  [calendarSearch, calendarSource, calendarWindow, calendarSort].forEach((control) => {
+    control?.addEventListener("input", syncCalendarQueue);
+    control?.addEventListener("change", syncCalendarQueue);
+  });
+  syncCalendarQueue();
+</script>
+{% endblock %}

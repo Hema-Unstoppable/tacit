@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+.env
+
+# Planning docs and scratch assets — not part of the deployable app
+*.pdf
+*.docx
+Logo draft*.jpg
+ChatGPT API.txt
+
+# Machine-specific Claude Code settings
+.claude/settings.local.json

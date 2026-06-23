@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="app-hero-panel">
+  <div>
+    <span class="eyebrow">Workspace overview</span>
+    <h2>Your LinkedIn content engine is ready.</h2>
+    <p>Transform uploaded expertise into insights, drafts, and scheduled posts from one calm publishing desk.</p>
+  </div>
+  <div class="app-hero-metrics">
+    <span><b>{{ sources|length }}</b> Sources</span>
+    <span><b>{{ insights|length }}</b> Insights</span>
+    <span><b>{{ scheduled|length }}</b> Scheduled</span>
+  </div>
+</section>
+
+<div class="grid three stat-grid">
+  <div class="card stat-card">
+    <h2>Sources</h2>
+    <div class="stat-number">{{ sources|length }}</div>
+    <p class="muted small">Recent uploaded or pasted knowledge assets.</p>
+  </div>
+  <div class="card stat-card">
+    <h2>Insights</h2>
+    <div class="stat-number">{{ insights|length }}</div>
+    <p class="muted small">Ideas extracted from your source material.</p>
+  </div>
+  <div class="card stat-card">
+    <h2>Scheduled</h2>
+    <div class="stat-number">{{ scheduled|length }}</div>
+    <p class="muted small">Approved posts planned inside Tacit.</p>
+  </div>
+</div>
+
+{% if not voice_profile %}
+  <div class="card mt-4">
+    <h2>Set up your voice profile</h2>
+    <p class="muted">Add your audience, tone notes, and sample writing before generating drafts.</p>
+    <a class="button mt-3" href="/voice">Create voice profile</a>
+  </div>
+{% endif %}
+
+<div class="grid two mt-4">
+  <section class="card">
+    <h2>Recent drafts</h2>
+    <div class="list">
+      {% for post in posts %}
+        <div class="item">
+          <span class="status {{ post.status }}">{{ post.status }}</span>
+          <p class="small muted mt-2">Post {{ post.variant_number }}</p>
+          <p class="post-text mt-2">{{ post.draft_text[:280] }}{% if post.draft_text|length > 280 %}...{% endif %}</p>
+        </div>
+      {% else %}
+        <p class="muted">No drafts yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Next scheduled posts</h2>
+    <div class="list">
+      {% for post in scheduled %}
+        <div class="item">
+          <strong>{{ post.planned_publish_at.strftime("%b %d, %Y %I:%M %p") if post.planned_publish_at else "No date" }}</strong>
+          <p class="post-text mt-2">{{ post.draft_text[:220] }}{% if post.draft_text|length > 220 %}...{% endif %}</p>
+        </div>
+      {% else %}
+        <p class="muted">Approved posts will appear here after scheduling.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
