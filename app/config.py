@@ -33,6 +33,7 @@ class Settings:
     google_client_id: str | None = os.getenv("GOOGLE_CLIENT_ID") or None
     google_client_secret: str | None = os.getenv("GOOGLE_CLIENT_SECRET") or None
     google_redirect_uri: str = os.getenv("GOOGLE_REDIRECT_URI", "http://127.0.0.1:8000/auth/google/callback")
+    session_https_only: bool = os.getenv("SESSION_HTTPS_ONLY", "false").lower() == "true"
 
 
 settings = Settings()

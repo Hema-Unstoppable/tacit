@@ -39,7 +39,12 @@ from app.services.security import hash_password, verify_password
 
 
 app = FastAPI(title="Tacit")
-app.add_middleware(SessionMiddleware, secret_key=settings.app_secret)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.app_secret,
+    https_only=settings.session_https_only,
+    same_site="lax",
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
