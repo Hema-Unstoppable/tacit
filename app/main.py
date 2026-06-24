@@ -21,7 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import SessionLocal, get_db, init_db
-from app.models import Insight, LinkedInAccount, PlatformSettings, Post, Source, User, VoiceProfile, Workspace, WorkspaceMember
+from app.models import Insight, LinkedInAccount, PlatformSettings, Post, Source, Testimonial, User, VoiceProfile, Workspace, WorkspaceMember
 from app.services.ai import get_ai_client
 from app.services.documents import UnsupportedFileType, extract_text
 from app.services.linkedin import (
@@ -534,7 +534,7 @@ def order_posts_for_auto_schedule(posts: list[Post], ordering: str) -> list[Post
 def dashboard(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
-        return templates.TemplateResponse("landing.html", {"request": request})
+        return templates.TemplateResponse("landing.html", {"request": request, "testimonials": public_testimonials(db)})
     workspace = current_workspace(user, db)
     voice_profile = first_voice_profile(workspace, db)
     sources = (
@@ -629,6 +629,11 @@ def admin_page(request: Request, db: Session = Depends(get_db), user: User = Dep
     if platform.openai_api_key.strip():
         key = platform.openai_api_key.strip()
         masked_key = f"{key[:7]}{'•' * 10}{key[-4:]}" if len(key) > 14 else "•" * len(key)
+    users_by_id = {u.id: u for u in all_users}
+    testimonials_rows = [
+        {"testimonial": t, "author_email": users_by_id[t.user_id].email if t.user_id in users_by_id else "—"}
+        for t in db.query(Testimonial).order_by(Testimonial.created_at.desc()).all()
+    ]
     return templates.TemplateResponse(
         "admin.html",
         {
@@ -640,6 +645,7 @@ def admin_page(request: Request, db: Session = Depends(get_db), user: User = Dep
             "ai_status": ai_status(db),
             "platform": platform,
             "masked_key": masked_key,
+            "testimonials_rows": testimonials_rows,
             "active": "admin",
         },
     )
@@ -672,9 +678,41 @@ def clear_ai_settings(db: Session = Depends(get_db), user: User = Depends(requir
     return RedirectResponse("/admin?ai_cleared=1", status_code=303)
 
 
+@app.post("/admin/testimonials/{testimonial_id}/approve")
+def approve_testimonial(testimonial_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    testimonial = db.get(Testimonial, testimonial_id)
+    if not testimonial:
+        raise HTTPException(status_code=404)
+    testimonial.status = "approved"
+    testimonial.reviewed_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse("/admin?testimonial_updated=1", status_code=303)
+
+
+@app.post("/admin/testimonials/{testimonial_id}/reject")
+def reject_testimonial(testimonial_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    testimonial = db.get(Testimonial, testimonial_id)
+    if not testimonial:
+        raise HTTPException(status_code=404)
+    testimonial.status = "rejected"
+    testimonial.reviewed_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse("/admin?testimonial_updated=1", status_code=303)
+
+
+def public_testimonials(db: Session) -> list[Testimonial]:
+    return (
+        db.query(Testimonial)
+        .filter(Testimonial.status == "approved", Testimonial.consent_public.is_(True))
+        .order_by(Testimonial.created_at.desc())
+        .limit(12)
+        .all()
+    )
+
+
 @app.get("/landing", response_class=HTMLResponse)
-def landing_page(request: Request):
-    return templates.TemplateResponse("landing.html", {"request": request})
+def landing_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("landing.html", {"request": request, "testimonials": public_testimonials(db)})
 
 
 @app.get("/signup", response_class=HTMLResponse)
@@ -1900,6 +1938,7 @@ def calendar_page(request: Request, db: Session = Depends(get_db), user: User = 
         .all()
     )
     scheduled_sources = sorted({post.source.title for post in scheduled if post.source and post.source.title})
+    show_review_prompt = bool(scheduled or posted) and not workspace.testimonial_prompted
     return templates.TemplateResponse(
         "calendar.html",
         {
@@ -1910,11 +1949,45 @@ def calendar_page(request: Request, db: Session = Depends(get_db), user: User = 
             "scheduled_sources": scheduled_sources,
             "posted": posted,
             "failed": failed,
+            "show_review_prompt": show_review_prompt,
             "ai_status": ai_status(db),
             "active": "calendar",
             "app_timezone": workspace.timezone_label or settings.app_timezone,
         },
     )
+
+
+@app.post("/testimonials")
+def submit_testimonial(
+    rating: int = Form(...),
+    comment: str = Form(""),
+    display_name: str = Form(""),
+    consent_public: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    workspace = current_workspace(user, db)
+    db.add(
+        Testimonial(
+            workspace_id=workspace.id,
+            user_id=user.id,
+            rating=max(1, min(5, rating)),
+            comment=comment.strip()[:2000],
+            display_name=display_name.strip()[:255] or "A Tacit user",
+            consent_public=consent_public == "yes",
+        )
+    )
+    workspace.testimonial_prompted = True
+    db.commit()
+    return RedirectResponse("/calendar?review_thanks=1", status_code=303)
+
+
+@app.post("/testimonials/dismiss")
+def dismiss_testimonial_prompt(db: Session = Depends(get_db), user: User = Depends(require_user)):
+    workspace = current_workspace(user, db)
+    workspace.testimonial_prompted = True
+    db.commit()
+    return RedirectResponse("/calendar", status_code=303)
 
 
 @app.get("/settings", response_class=HTMLResponse)

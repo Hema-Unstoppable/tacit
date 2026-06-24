@@ -21,6 +21,49 @@
   <div class="error mb-4">Could not regenerate this post. Please try again.</div>
 {% endif %}
 
+{% if request.query_params.get("review_thanks") %}
+  <div class="notice success mb-4">Thanks for the feedback!</div>
+{% endif %}
+
+{% if show_review_prompt %}
+  <section class="card review-prompt mb-4">
+    <div class="section-head">
+      <div>
+        <h2>How's Tacit working for you?</h2>
+        <p class="muted">You've got posts on the calendar — mind rating your experience? It helps other experts find Tacit.</p>
+      </div>
+    </div>
+    <form method="post" action="/testimonials" class="mt-3">
+      <div class="form-row">
+        <label>Your rating</label>
+        <div class="star-rating">
+          <input type="radio" id="star5" name="rating" value="5" required><label for="star5" title="5 stars">★</label>
+          <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="4 stars">★</label>
+          <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="3 stars">★</label>
+          <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="2 stars">★</label>
+          <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="1 star">★</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>What's it been like?</label>
+        <textarea name="comment" minlength="10" maxlength="2000" placeholder="What's working, what would you improve?" required></textarea>
+      </div>
+      <div class="form-row">
+        <label>Display name <span class="label-optional">(shown only if you're featured)</span></label>
+        <input type="text" name="display_name" value="{{ user.name }}" maxlength="255" placeholder="e.g. Jordan, Reliability Engineer">
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" name="consent_public" value="yes">
+        I'm OK with this being featured publicly on the Tacit website, with the display name above.
+      </label>
+      <div class="flex gap-3 mt-3">
+        <button class="button" type="submit">Submit feedback</button>
+        <button class="button secondary" type="submit" formaction="/testimonials/dismiss" formnovalidate>Not now</button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+
 <form class="mb-4" method="post" action="/publishing/run-due">
   <button class="button" type="submit">Publish due posts now</button>
 </form>

@@ -41,7 +41,7 @@ def ensure_lightweight_migrations() -> None:
         if "generation_preferences_json" not in source_columns:
             connection.execute(text("ALTER TABLE sources ADD COLUMN generation_preferences_json TEXT DEFAULT ''"))
         if "posted_at" not in post_columns:
-            connection.execute(text("ALTER TABLE posts ADD COLUMN posted_at DATETIME"))
+            connection.execute(text("ALTER TABLE posts ADD COLUMN posted_at TIMESTAMP"))
         if "linkedin_post_id" not in post_columns:
             connection.execute(text("ALTER TABLE posts ADD COLUMN linkedin_post_id VARCHAR(255) DEFAULT ''"))
         if "publish_error" not in post_columns:
@@ -66,6 +66,8 @@ def ensure_lightweight_migrations() -> None:
             connection.execute(text("UPDATE users SET is_admin = 1 WHERE email = 'hema.bhit@gmail.com'"))
         if "timezone_label" not in workspace_columns:
             connection.execute(text("ALTER TABLE workspaces ADD COLUMN timezone_label VARCHAR(64) DEFAULT ''"))
+        if "testimonial_prompted" not in workspace_columns:
+            connection.execute(text("ALTER TABLE workspaces ADD COLUMN testimonial_prompted INTEGER DEFAULT 0"))
 
 
 def get_db():

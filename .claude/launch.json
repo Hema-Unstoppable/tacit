@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "tacit",
-      "runtimeExecutable": "uvicorn",
+      "runtimeExecutable": ".venv\\Scripts\\uvicorn.exe",
       "runtimeArgs": ["app.main:app", "--port", "8000"],
       "port": 8000,
       "autoPort": false

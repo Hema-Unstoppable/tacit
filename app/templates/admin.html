@@ -110,4 +110,43 @@
     </table>
   </div>
 </section>
+
+<section class="card mt-4">
+  <div class="section-head">
+    <h2>Testimonials</h2>
+    <span class="small muted">{{ testimonials_rows|length }} total</span>
+  </div>
+  {% if request.query_params.get("testimonial_updated") %}
+    <div class="notice success mb-3">Updated.</div>
+  {% endif %}
+  <div class="list mt-3">
+    {% for row in testimonials_rows %}
+      {% set t = row.testimonial %}
+      <div class="item">
+        <div class="section-head">
+          <div>
+            <span class="status {{ 'approved' if t.status == 'approved' else ('rejected' if t.status == 'rejected' else 'draft') }}">{{ t.status }}</span>
+            <strong class="ml-2">{{ '★' * t.rating }}{{ '☆' * (5 - t.rating) }}</strong>
+            <span class="small muted ml-2">{{ row.author_email }} · {{ t.created_at|app_datetime("%b %d, %Y") }}</span>
+          </div>
+          <span class="small muted">{{ "Public OK" if t.consent_public else "Internal only — not consented" }}</span>
+        </div>
+        <p class="post-text mt-2">{{ t.comment }}</p>
+        <p class="small muted mt-1">Display name: {{ t.display_name }}</p>
+        {% if t.status == "pending" %}
+          <div class="flex gap-3 mt-3">
+            <form method="post" action="/admin/testimonials/{{ t.id }}/approve">
+              <button class="button" type="submit">Approve</button>
+            </form>
+            <form method="post" action="/admin/testimonials/{{ t.id }}/reject">
+              <button class="button secondary danger-soft" type="submit">Reject</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="muted">No testimonials yet.</p>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

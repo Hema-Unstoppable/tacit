@@ -14,6 +14,7 @@
     <div class="lp2-nav-links">
       <a href="#features">Features</a>
       <a href="#workflow">How it works</a>
+      {% if testimonials %}<a href="#testimonials">Reviews</a>{% endif %}
       <a href="#pricing">Free Access</a>
       <a href="#faq">FAQ</a>
     </div>
@@ -206,6 +207,26 @@
     </div>
   </section>
 
+  <!-- TESTIMONIALS -->
+  {% if testimonials %}
+  <section id="testimonials" class="lp2-section">
+    <div class="lp2-section-head reveal">
+      <div class="lp2-chip">Early users</div>
+      <h2>What early users are saying.</h2>
+      <p>Real feedback from people turning their documents into LinkedIn posts.</p>
+    </div>
+    <div class="lp2-testimonial-grid reveal">
+      {% for t in testimonials %}
+        <div class="lp2-testimonial-card">
+          <div class="lp2-testimonial-stars">{{ '★' * t.rating }}{{ '☆' * (5 - t.rating) }}</div>
+          <p class="lp2-testimonial-text">"{{ t.comment }}"</p>
+          <div class="lp2-testimonial-author">{{ t.display_name }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- FREE ACCESS -->
   <section id="pricing" class="lp2-section lp2-section-alt">
     <div class="lp2-section-head reveal">
@@ -287,6 +308,7 @@
           <strong>Product</strong>
           <a href="#features">Features</a>
           <a href="#workflow">How it works</a>
+          {% if testimonials %}<a href="#testimonials">Reviews</a>{% endif %}
           <a href="#pricing">Free Access</a>
         </div>
         <div class="lp2-footer-col">

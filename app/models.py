@@ -31,6 +31,7 @@ class Workspace(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
     timezone_label: Mapped[str] = mapped_column(String(64), default="")
+    testimonial_prompted: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     members: Mapped[list[WorkspaceMember]] = relationship(back_populates="workspace")
@@ -161,3 +162,18 @@ class PlatformSettings(Base):
     openai_api_key: Mapped[str] = mapped_column(Text, default="")
     openai_model: Mapped[str] = mapped_column(String(100), default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Testimonial(Base):
+    __tablename__ = "testimonials"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    rating: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    display_name: Mapped[str] = mapped_column(String(255), default="")
+    consent_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(50), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
