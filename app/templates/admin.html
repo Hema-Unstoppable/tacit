@@ -34,6 +34,40 @@
   </section>
 </div>
 
+{% if request.query_params.get("ai_saved") %}
+  <div class="notice success mb-4">AI settings saved.</div>
+{% endif %}
+{% if request.query_params.get("ai_cleared") %}
+  <div class="notice success mb-4">Admin override cleared — Tacit will use the .env API key again.</div>
+{% endif %}
+
+<section class="card mb-4">
+  <h2>AI provider</h2>
+  <p class="muted mt-1">Override the OpenAI API key and model Tacit uses, without touching <code>.env</code> or redeploying. Leave the key field blank to keep the current key while only changing the model.</p>
+  <div class="ai-settings-status mt-3">
+    <span class="status {{ 'posted' if ai_status.configured else 'publish_failed' }}">{{ ai_status.label }}</span>
+    <span class="small muted">Model: {{ ai_status.model }} · Source: {{ ai_status.source }}</span>
+  </div>
+  <form method="post" action="/admin/ai-settings" class="mt-4">
+    <div class="grid two">
+      <div class="form-row">
+        <label>OpenAI API key {% if masked_key %}<span class="label-optional">(currently {{ masked_key }})</span>{% endif %}</label>
+        <input type="password" name="openai_api_key" placeholder="{{ 'Leave blank to keep current key' if masked_key else 'sk-...' }}" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label>Model</label>
+        <input name="openai_model" value="{{ platform.openai_model }}" placeholder="{{ 'Default: ' ~ ai_status.model if not platform.openai_model else '' }}">
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button class="button" type="submit">Save AI settings</button>
+      {% if masked_key %}
+        <button class="button secondary danger-soft" type="submit" formaction="/admin/ai-settings/clear" onclick="return confirm('Clear the admin override and fall back to the .env API key?')">Clear override</button>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
 <section class="card">
   <h2>Users</h2>
   <div class="admin-table-wrap mt-3">

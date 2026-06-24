@@ -37,8 +37,9 @@ class AIClient:
 
 
 class OpenAIClient(AIClient):
-    def __init__(self) -> None:
-        self.client = OpenAI(api_key=settings.openai_api_key)
+    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+        self.client = OpenAI(api_key=api_key or settings.openai_api_key)
+        self.model = model or settings.openai_model
 
     def extract_insights(self, source: Source, voice_profile: VoiceProfile | None) -> list[ExtractedInsight]:
         profile_context = _voice_context(voice_profile)
@@ -244,7 +245,7 @@ Return JSON only with keys: tone, structure, vocabulary, opening_style, cta_styl
 
     def _json_response(self, prompt: str) -> dict:
         response = self.client.responses.create(
-            model=settings.openai_model,
+            model=self.model,
             input=prompt,
             text={"format": {"type": "json_object"}, "verbosity": "low"},
             reasoning={"effort": "low"},
@@ -360,11 +361,12 @@ class FallbackAIClient(AIClient):
         )
 
 
-def get_ai_client() -> AIClient:
-    if not settings.openai_api_key:
+def get_ai_client(api_key: str | None = None, model: str | None = None) -> AIClient:
+    effective_key = api_key or settings.openai_api_key
+    if not effective_key:
         return FallbackAIClient()
     try:
-        return OpenAIClient()
+        return OpenAIClient(api_key=effective_key, model=model or settings.openai_model)
     except Exception:
         return FallbackAIClient()
 

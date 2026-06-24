@@ -3998,3 +3998,9 @@ textarea {
 .admin-table tbody tr:hover {
   background: #f8fafc;
 }
+
+.ai-settings-status {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}

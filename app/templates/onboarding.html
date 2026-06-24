@@ -91,6 +91,8 @@
 
       {% if request.query_params.get("error") == "unsupported_file" %}
         <div class="ob-error">Only PDF, DOCX, TXT, and MD files are supported.</div>
+      {% elif request.query_params.get("error") == "file_too_large" %}
+        <div class="ob-error">That file is too large. Please upload a file under {{ max_upload_mb }}MB.</div>
       {% endif %}
 
       <form method="post" action="/onboarding/step/source" enctype="multipart/form-data" class="ob-form">

@@ -152,3 +152,12 @@ class LinkedInAccount(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     workspace: Mapped[Workspace] = relationship(back_populates="linkedin_accounts")
+
+
+class PlatformSettings(Base):
+    __tablename__ = "platform_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    openai_api_key: Mapped[str] = mapped_column(Text, default="")
+    openai_model: Mapped[str] = mapped_column(String(100), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

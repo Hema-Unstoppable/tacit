@@ -22,12 +22,18 @@ def extract_text(path: Path) -> str:
 
 
 def extract_pdf_text(path: Path) -> str:
-    reader = PdfReader(str(path))
-    pages = [page.extract_text() or "" for page in reader.pages]
+    try:
+        reader = PdfReader(str(path))
+        pages = [page.extract_text() or "" for page in reader.pages]
+    except Exception as exc:
+        raise UnsupportedFileType("This file could not be read as a PDF. It may be corrupted.") from exc
     return "\n\n".join(page.strip() for page in pages if page.strip())
 
 
 def extract_docx_text(path: Path) -> str:
-    document = Document(str(path))
-    paragraphs = [paragraph.text.strip() for paragraph in document.paragraphs]
+    try:
+        document = Document(str(path))
+        paragraphs = [paragraph.text.strip() for paragraph in document.paragraphs]
+    except Exception as exc:
+        raise UnsupportedFileType("This file could not be read as a DOCX. It may be corrupted.") from exc
     return "\n\n".join(paragraph for paragraph in paragraphs if paragraph)

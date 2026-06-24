@@ -13,12 +13,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openai import OpenAIError, RateLimitError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import SessionLocal, get_db, init_db
-from app.models import Insight, LinkedInAccount, Post, Source, User, VoiceProfile, Workspace, WorkspaceMember
+from app.models import Insight, LinkedInAccount, PlatformSettings, Post, Source, User, VoiceProfile, Workspace, WorkspaceMember
 from app.services.ai import get_ai_client
 from app.services.documents import UnsupportedFileType, extract_text
 from app.services.linkedin import (
@@ -33,12 +36,23 @@ from app.services.linkedin import (
     publish_text_post,
     token_expiry,
 )
-from app.services.email import generate_verification_token, send_verification_email, verify_email_token
+from app.services.email import (
+    generate_password_reset_token,
+    generate_verification_token,
+    parse_password_reset_token,
+    password_reset_fingerprint,
+    send_password_reset_email,
+    send_verification_email,
+    verify_email_token,
+)
 from app.services.google_auth import build_google_auth_url, exchange_google_code, get_google_user_info, google_configured
 from app.services.security import hash_password, verify_password
 
 
 app = FastAPI(title="Tacit")
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.app_secret,
@@ -219,12 +233,34 @@ def first_voice_profile(workspace: Workspace, db: Session) -> VoiceProfile | Non
     )
 
 
-def ai_status() -> dict[str, str | bool]:
-    configured = bool(settings.openai_api_key)
+def get_platform_settings(db: Session) -> PlatformSettings:
+    row = db.get(PlatformSettings, 1)
+    if not row:
+        row = PlatformSettings(id=1)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return row
+
+
+def resolve_ai_client(db: Session):
+    platform = get_platform_settings(db)
+    api_key = platform.openai_api_key.strip() or None
+    model = platform.openai_model.strip() or None
+    return get_ai_client(api_key=api_key, model=model)
+
+
+def ai_status(db: Session) -> dict[str, str | bool]:
+    platform = get_platform_settings(db)
+    has_override = bool(platform.openai_api_key.strip())
+    effective_key = platform.openai_api_key.strip() or settings.openai_api_key
+    effective_model = platform.openai_model.strip() or settings.openai_model
+    configured = bool(effective_key)
     return {
         "configured": configured,
         "label": "OpenAI connected" if configured else "Local fallback mode",
-        "model": settings.openai_model if configured else "No API key",
+        "model": effective_model if configured else "No API key",
+        "source": "admin override" if has_override else "environment (.env)",
     }
 
 
@@ -334,7 +370,7 @@ def create_posts_for_insight(
     profile: VoiceProfile | None,
 ) -> int:
     group_id = uuid.uuid4().hex
-    generated = get_ai_client().generate_posts(insight, profile)
+    generated = resolve_ai_client(db).generate_posts(insight, profile)
     for index, draft_text in enumerate(generated, start=1):
         db.add(
             Post(
@@ -351,12 +387,24 @@ def create_posts_for_insight(
     return len(generated)
 
 
+MAX_UPLOAD_BYTES = settings.max_upload_mb * 1024 * 1024
+
+
+def enforce_upload_size_limit(file: UploadFile) -> None:
+    file.file.seek(0, 2)
+    size = file.file.tell()
+    file.file.seek(0)
+    if size > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {settings.max_upload_mb}MB.")
+
+
 def save_optional_upload(file: UploadFile | None) -> str:
     if not file or not file.filename:
         return ""
     suffix = Path(file.filename).suffix.lower()
     if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".pdf", ".docx", ".txt", ".md"}:
         return ""
+    enforce_upload_size_limit(file)
     safe_name = f"{uuid.uuid4().hex}{suffix}"
     destination = settings.upload_dir / safe_name
     with destination.open("wb") as output:
@@ -528,7 +576,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "insights": insights,
             "posts": posts,
             "scheduled": scheduled,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "active": "dashboard",
         },
     )
@@ -576,6 +624,11 @@ def admin_page(request: Request, db: Session = Depends(get_db), user: User = Dep
         "posts": db.query(Post).count(),
         "posted": db.query(Post).filter(Post.status == "posted").count(),
     }
+    platform = get_platform_settings(db)
+    masked_key = ""
+    if platform.openai_api_key.strip():
+        key = platform.openai_api_key.strip()
+        masked_key = f"{key[:7]}{'•' * 10}{key[-4:]}" if len(key) > 14 else "•" * len(key)
     return templates.TemplateResponse(
         "admin.html",
         {
@@ -584,10 +637,39 @@ def admin_page(request: Request, db: Session = Depends(get_db), user: User = Dep
             "workspace": workspace,
             "rows": rows,
             "totals": totals,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
+            "platform": platform,
+            "masked_key": masked_key,
             "active": "admin",
         },
     )
+
+
+@app.post("/admin/ai-settings")
+def update_ai_settings(
+    request: Request,
+    openai_api_key: str = Form(""),
+    openai_model: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    platform = get_platform_settings(db)
+    if openai_api_key.strip():
+        platform.openai_api_key = openai_api_key.strip()
+    platform.openai_model = openai_model.strip()
+    platform.updated_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse("/admin?ai_saved=1", status_code=303)
+
+
+@app.post("/admin/ai-settings/clear")
+def clear_ai_settings(db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    platform = get_platform_settings(db)
+    platform.openai_api_key = ""
+    platform.openai_model = ""
+    platform.updated_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse("/admin?ai_cleared=1", status_code=303)
 
 
 @app.get("/landing", response_class=HTMLResponse)
@@ -601,6 +683,7 @@ def signup_form(request: Request):
 
 
 @app.post("/signup")
+@limiter.limit("5/minute")
 def signup(
     request: Request,
     email: str = Form(...),
@@ -633,6 +716,7 @@ def login_form(request: Request):
 
 
 @app.post("/login")
+@limiter.limit("10/minute")
 def login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email.lower().strip()).first()
     if not user or not verify_password(password, user.password_hash):
@@ -690,12 +774,75 @@ def verify_success(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/resend-verification")
+@limiter.limit("3/minute")
 def resend_verification(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if user and not user.email_verified:
         token = generate_verification_token(user.email)
         send_verification_email(user.email, token)
     return RedirectResponse("/verify-pending?resent=1", status_code=303)
+
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_form(request: Request):
+    dev_token = request.session.pop("dev_reset_token", None)
+    return templates.TemplateResponse(
+        "forgot_password.html",
+        {"request": request, "dev_token": dev_token, "smtp_configured": bool(settings.smtp_host)},
+    )
+
+
+@app.post("/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email.lower().strip()).first()
+    if user:
+        token = generate_password_reset_token(user.email, user.password_hash)
+        send_password_reset_email(user.email, token)
+        if not settings.smtp_host:
+            request.session["dev_reset_token"] = token
+    return RedirectResponse("/forgot-password?sent=1", status_code=303)
+
+
+def resolve_password_reset_user(token: str, db: Session) -> User | None:
+    parsed = parse_password_reset_token(token)
+    if not parsed:
+        return None
+    email, fingerprint = parsed
+    user = db.query(User).filter(User.email == email).first()
+    if not user or fingerprint != password_reset_fingerprint(user.password_hash):
+        return None
+    return user
+
+
+@app.get("/reset-password/{token}", response_class=HTMLResponse)
+def reset_password_form(token: str, request: Request, db: Session = Depends(get_db)):
+    user = resolve_password_reset_user(token, db)
+    if not user:
+        return RedirectResponse("/forgot-password?error=Reset+link+is+invalid+or+has+expired.", status_code=303)
+    return templates.TemplateResponse("reset_password.html", {"request": request, "token": token})
+
+
+@app.post("/reset-password/{token}")
+@limiter.limit("5/minute")
+def reset_password(
+    token: str,
+    request: Request,
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = resolve_password_reset_user(token, db)
+    if not user:
+        return RedirectResponse("/forgot-password?error=Reset+link+is+invalid+or+has+expired.", status_code=303)
+    if len(password) < 8:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            {"request": request, "token": token, "error": "Password must be at least 8 characters."},
+            status_code=400,
+        )
+    user.password_hash = hash_password(password)
+    db.commit()
+    return RedirectResponse("/login?reset=1", status_code=303)
 
 
 @app.get("/onboarding", response_class=HTMLResponse)
@@ -724,6 +871,7 @@ def onboarding(request: Request, db: Session = Depends(get_db), user: User = Dep
             "has_voice": has_voice,
             "has_source": has_source,
             "last_source": last_source,
+            "max_upload_mb": settings.max_upload_mb,
         },
     )
 
@@ -746,7 +894,7 @@ def onboarding_voice(
     profile.tone_notes = tone_notes
     profile.example_posts = example_post.strip()
     profile.updated_at = datetime.utcnow()
-    profile.fingerprint_json = get_ai_client().fingerprint_voice(profile)
+    profile.fingerprint_json = resolve_ai_client(db).fingerprint_voice(profile)
     db.commit()
     return RedirectResponse("/onboarding", status_code=303)
 
@@ -763,6 +911,10 @@ def onboarding_source(
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".pdf", ".docx", ".txt", ".md"}:
         return RedirectResponse("/onboarding?error=unsupported_file", status_code=303)
+    try:
+        enforce_upload_size_limit(file)
+    except HTTPException:
+        return RedirectResponse("/onboarding?error=file_too_large", status_code=303)
     safe_name = f"{uuid.uuid4().hex}{suffix}"
     destination = settings.upload_dir / safe_name
     with destination.open("wb") as output:
@@ -903,7 +1055,7 @@ def channels_page(
             "request": request,
             "user": user,
             "workspace": workspace,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "linkedin_status": linkedin_status(workspace, db),
             "linkedin_error": linkedin_error,
             "active": "channels",
@@ -1057,7 +1209,7 @@ def voice_form(request: Request, db: Session = Depends(get_db), user: User = Dep
             "workspace": workspace,
             "profile": profile,
             "example_values": example_values,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "active": "voice",
         },
     )
@@ -1094,7 +1246,7 @@ def save_voice(
         f"--- {title} ---\n\n{text}" for title, text in examples if text
     )
     profile.updated_at = datetime.utcnow()
-    profile.fingerprint_json = get_ai_client().fingerprint_voice(profile)
+    profile.fingerprint_json = resolve_ai_client(db).fingerprint_voice(profile)
     db.commit()
     return RedirectResponse("/sources", status_code=303)
 
@@ -1123,7 +1275,7 @@ def sources_page(
             "sources": sources,
             "source_cards": source_cards,
             "app_timezone": workspace.timezone_label or settings.app_timezone,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "ai_error": ai_error,
             "active": "sources",
         },
@@ -1190,6 +1342,7 @@ def upload_source(
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".pdf", ".docx", ".txt", ".md"}:
         raise HTTPException(status_code=400, detail="Only PDF, DOCX, TXT, and MD files are supported.")
+    enforce_upload_size_limit(file)
     safe_name = f"{uuid.uuid4().hex}{suffix}"
     destination = settings.upload_dir / safe_name
     with destination.open("wb") as output:
@@ -1307,7 +1460,7 @@ def create_marketing_campaign(
     db.flush()
     profile = first_voice_profile(workspace, db)
     try:
-        generated_posts = get_ai_client().generate_marketing_posts(source, profile, post_count)
+        generated_posts = resolve_ai_client(db).generate_marketing_posts(source, profile, post_count)
     except Exception as exc:
         db.rollback()
         message = ai_error_message(exc)
@@ -1362,7 +1515,7 @@ def source_detail(
             "source_preferences": source_preferences(source),
             "source_summary": source_status_summary(source),
             "insights": insights,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "ai_error": ai_error,
             "active": "sources",
         },
@@ -1377,7 +1530,7 @@ def extract_insights(source_id: int, db: Session = Depends(get_db), user: User =
         raise HTTPException(status_code=404)
     profile = first_voice_profile(workspace, db)
     try:
-        extracted = get_ai_client().extract_insights(source, profile)
+        extracted = resolve_ai_client(db).extract_insights(source, profile)
     except Exception as exc:
         message = ai_error_message(exc)
         return RedirectResponse(f"/sources/{source.id}?ai_error={quote(message)}", status_code=303)
@@ -1412,7 +1565,7 @@ def create_source_drafts(source_id: int, db: Session = Depends(get_db), user: Us
     )
     if not insights:
         try:
-            extracted = get_ai_client().extract_insights(source, profile)
+            extracted = resolve_ai_client(db).extract_insights(source, profile)
         except Exception as exc:
             message = ai_error_message(exc)
             return RedirectResponse(f"/sources/{source.id}?ai_error={quote(message)}", status_code=303)
@@ -1527,7 +1680,7 @@ def drafts_page(request: Request, db: Session = Depends(get_db), user: User = De
             "draft_groups": draft_groups,
             "schedulable_count": schedulable_count,
             "app_timezone": workspace.timezone_label or settings.app_timezone,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "active": "drafts",
         },
     )
@@ -1677,7 +1830,7 @@ def regenerate_calendar_post(post_id: int, db: Session = Depends(get_db), user: 
         raise HTTPException(status_code=404)
     profile = first_voice_profile(workspace, db)
     try:
-        new_text = get_ai_client().regenerate_post(post, profile)
+        new_text = resolve_ai_client(db).regenerate_post(post, profile)
         post.draft_text = new_text
         post.updated_at = datetime.utcnow()
         db.commit()
@@ -1757,7 +1910,7 @@ def calendar_page(request: Request, db: Session = Depends(get_db), user: User = 
             "scheduled_sources": scheduled_sources,
             "posted": posted,
             "failed": failed,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "active": "calendar",
             "app_timezone": workspace.timezone_label or settings.app_timezone,
         },
@@ -1774,7 +1927,7 @@ def settings_page(request: Request, db: Session = Depends(get_db), user: User = 
             "user": user,
             "workspace": workspace,
             "linkedin_status": linkedin_status(workspace, db),
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "active": "settings",
             "app_timezone": workspace.timezone_label or settings.app_timezone,
             "common_timezones": COMMON_TIMEZONE_LABELS,
@@ -1813,7 +1966,7 @@ def history_page(request: Request, db: Session = Depends(get_db), user: User = D
             "user": user,
             "workspace": workspace,
             "posted": posted,
-            "ai_status": ai_status(),
+            "ai_status": ai_status(db),
             "active": "history",
             "app_timezone": workspace.timezone_label or settings.app_timezone,
         },
