@@ -84,7 +84,7 @@ def _send_html_email(to_email: str, subject: str, html: str) -> None:
 
     context = ssl.create_default_context()
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
             server.ehlo()
             server.starttls(context=context)
             server.login(settings.smtp_user, settings.smtp_pass)
