@@ -84,45 +84,4 @@
 
 </div>
 
-<div class="grid two mt-4">
-  <section class="card">
-    <h2>Setup checklist</h2>
-    <div class="list">
-      <div class="item">
-        <strong>1. LinkedIn Developer App</strong>
-        <p class="small muted">Tacit app created at developer.linkedin.com.</p>
-      </div>
-      <div class="item">
-        <strong>2. Redirect URL</strong>
-        <p class="small muted">Add <code>http://127.0.0.1:8000/linkedin/callback</code> in the Auth tab.</p>
-      </div>
-      <div class="item">
-        <strong>3. Required products</strong>
-        <p class="small muted"><strong>Share on LinkedIn</strong> (personal posts) + <strong>Community Management API</strong> (company page posts). Request both in the Products tab — approval is usually same-day.</p>
-      </div>
-      <div class="item">
-        <strong>4. Company page admin</strong>
-        <p class="small muted">You must be a <strong>Super Admin</strong> or <strong>Content Admin</strong> of the TOGA page on LinkedIn for company page publishing to work.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Scope reference</h2>
-    <div class="list">
-      <div class="item">
-        <strong>w_member_social</strong>
-        <p class="small muted">Publish to personal profile. Included in <em>Share on LinkedIn</em> product.</p>
-      </div>
-      <div class="item">
-        <strong>w_organization_social</strong>
-        <p class="small muted">Publish to company pages. Included in <em>Community Management API</em> product.</p>
-      </div>
-      <div class="item">
-        <strong>r_organization_social</strong>
-        <p class="small muted">Auto-detect company pages you admin after connecting. Also in <em>Community Management API</em>.</p>
-      </div>
-    </div>
-  </section>
-</div>
 {% endblock %}
